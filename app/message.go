@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/binary"
-	"strings"
 )
 
 type Message struct {
-	Header Header
+	Header   Header
+	Question Question
+	Answer   Answer
 }
 
 type Header struct {
@@ -31,19 +32,32 @@ type Question struct {
 	Class uint16
 }
 
+type Answer struct {
+	Name   string
+	Type   uint16
+	Class  uint16
+	TTL    uint32
+	Length uint16
+	Data   string
+}
+
 func NewMessage() *Message {
-	return &Message{}
+	return &Message{
+		Header:   *NewHeader(),
+		Question: *NewQuestion("codecrafters.io", 1, 1),
+		Answer:   *NewAnswer("codecrafters.io", 1, 1, 60, 4, "1.1.1.1"),
+	}
 }
 
 func (m *Message) Serialize() []byte {
 	messageBuf := []byte{}
-	header := NewHeader()
-	headerBuf := header.SerializeHeader()
-	question := NewQuestion("codecrafters.io", 1, 1)
-	questionBuf := question.SerializeQuestion()
+	headerBuf := m.Header.SerializeHeader()
+	questionBuf := m.Question.SerializeQuestion()
+	answerBuf := m.Answer.SerializeAnswer()
 
 	messageBuf = append(messageBuf, headerBuf...)
 	messageBuf = append(messageBuf, questionBuf...)
+	messageBuf = append(messageBuf, answerBuf...)
 
 	return messageBuf
 }
@@ -60,7 +74,7 @@ func NewHeader() *Header {
 		Z:       0,
 		RCODE:   0,
 		QDCOUNT: 1,
-		ANCOUNT: 0,
+		ANCOUNT: 1,
 		NSCOUNT: 0,
 		ARCOUNT: 0,
 	}
@@ -97,17 +111,35 @@ func NewQuestion(name string, qtype uint16, qclass uint16) *Question {
 
 func (question *Question) SerializeQuestion() []byte {
 	questionBuf := []byte{}
-
-	qNameBuf := []byte{}
-	for _, label := range strings.Split(question.Name, ".") {
-		qNameBuf = append(qNameBuf, byte(len(label)))
-		qNameBuf = append(qNameBuf, []byte(label)...)
-	}
-	qNameBuf = append(qNameBuf, byte(0))
-
+	qNameBuf := SerializeDomainOrIP(question.Name)
 	questionBuf = append(questionBuf, qNameBuf...)
 	questionBuf = binary.BigEndian.AppendUint16(questionBuf, question.Type)
 	questionBuf = binary.BigEndian.AppendUint16(questionBuf, question.Class)
 
 	return questionBuf
+}
+
+func NewAnswer(name string, atype, aclass uint16, ttl uint32, length uint16, data string) *Answer {
+	return &Answer{
+		Name:   name,
+		Type:   atype,
+		Class:  aclass,
+		TTL:    ttl,
+		Length: length,
+		Data:   data,
+	}
+}
+
+func (answer *Answer) SerializeAnswer() []byte {
+	answerBuf := []byte{}
+	aNameBuf := SerializeDomainOrIP(answer.Name)
+	answerBuf = append(answerBuf, aNameBuf...)
+	answerBuf = binary.BigEndian.AppendUint16(answerBuf, answer.Type)
+	answerBuf = binary.BigEndian.AppendUint16(answerBuf, answer.Class)
+	answerBuf = binary.BigEndian.AppendUint32(answerBuf, answer.TTL)
+	answerBuf = binary.BigEndian.AppendUint16(answerBuf, answer.Length)
+	dataBuf := SerializeDomainOrIP(answer.Data)
+	answerBuf = append(answerBuf, dataBuf...)
+
+	return answerBuf
 }
