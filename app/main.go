@@ -1,38 +1,11 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
-	"log"
 	"net"
 )
 
-// Ensures gofmt doesn't remove the "net" import in stage 1 (feel free to remove this!)
-// var _ = net.ListenUDP
-
-type message struct {
-	ID      uint16
-	QR      uint8
-	OPCODE  uint8
-	AA      uint8
-	TC      uint8
-	RD      uint8
-	RA      uint8
-	Z       uint8
-	RCODE   uint8
-	QDCOUNT uint16
-	ANCOUNT uint16
-	NSCOUNT uint16
-	ARCOUNT uint16
-}
-
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	// fmt.Println("Logs from your program will appear here!")
-
-	// Uncomment this block to pass the first stage
-	//
 	udpAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:2053")
 	if err != nil {
 		fmt.Println("Failed to resolve UDP address:", err)
@@ -60,29 +33,8 @@ func main() {
 		receivedData := string(buf[:size])
 		fmt.Printf("Received %d bytes from %s: %s\n", size, source, receivedData)
 
-		// Create an empty response
-		message := message{
-			ID:      1234,
-			QR:      1,
-			OPCODE:  0,
-			AA:      0,
-			TC:      0,
-			RD:      0,
-			RA:      0,
-			Z:       0,
-			RCODE:   0,
-			QDCOUNT: 0,
-			ANCOUNT: 0,
-			NSCOUNT: 0,
-			ARCOUNT: 0,
-		}
-		buf := bytes.Buffer{}
-		enc := gob.NewEncoder(&buf)
-		err = enc.Encode(message)
-		if err != nil {
-			log.Fatal("Error encoding message: ", err)
-		}
-		response := buf.Bytes()
+		message := NewMessage()
+		response := message.Serialize()
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {
