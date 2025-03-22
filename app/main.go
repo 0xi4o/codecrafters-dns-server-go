@@ -32,15 +32,16 @@ func main() {
 
 		receivedData := buf[:size]
 		receivedHeader := DeserializeHeader(receivedData[:12])
+		receivedQuestion := DeserializeQuestion(receivedData[12:])
 		fmt.Printf("Received %d bytes from %s: %v\n", size, source, receivedData)
 
 		header := NewHeader(receivedHeader.ID, receivedHeader.OPCODE, receivedHeader.RD)
-		question := NewQuestion("codecrafters.io", 1, 1)
-		answer := NewAnswer("codecrafters.io", 1, 1, 60, 4, "1.1.1.1")
+		question := NewQuestion(receivedQuestion.Name, receivedQuestion.Type, receivedQuestion.Class)
+		answer := NewAnswer(receivedQuestion.Name, receivedQuestion.Type, receivedQuestion.Class, 60, 4, "1.1.1.1")
 		message := NewMessage(header, question, answer)
 		response := message.Serialize()
 
-		fmt.Printf("Sending response: %v\n", response)
+		fmt.Printf("Sending answer: %v\n", answer)
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {

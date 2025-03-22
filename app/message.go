@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
-	"fmt"
 )
 
 type Message struct {
@@ -111,7 +111,7 @@ func (header *Header) SerializeHeader() []byte {
 
 func DeserializeHeader(buf []byte) Header {
 	flags := binary.BigEndian.Uint16(buf[2:4])
-	header := Header{
+	return Header{
 		ID:      binary.BigEndian.Uint16(buf[:2]),
 		QR:      uint8(flags >> 15 & 0x1),
 		OPCODE:  uint8(flags >> 11 & 0xF),
@@ -126,8 +126,6 @@ func DeserializeHeader(buf []byte) Header {
 		NSCOUNT: binary.BigEndian.Uint16(buf[8:10]),
 		ARCOUNT: binary.BigEndian.Uint16(buf[10:12]),
 	}
-	fmt.Printf("header: %v\n", header)
-	return header
 }
 
 func NewQuestion(name string, qtype uint16, qclass uint16) *Question {
@@ -146,6 +144,15 @@ func (question *Question) SerializeQuestion() []byte {
 	questionBuf = binary.BigEndian.AppendUint16(questionBuf, question.Class)
 
 	return questionBuf
+}
+
+func DeserializeQuestion(buf []byte) Question {
+	name, flags, _ := bytes.Cut(buf, []byte{0})
+	return Question{
+		Name:  DeserializeDomainOrIP(name),
+		Type:  binary.BigEndian.Uint16(flags[:2]),
+		Class: binary.BigEndian.Uint16(flags[2:]),
+	}
 }
 
 func NewAnswer(name string, atype, aclass uint16, ttl uint32, length uint16, data string) *Answer {
