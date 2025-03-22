@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"strings"
 )
 
 type Message struct {
@@ -24,8 +25,27 @@ type Header struct {
 	ARCOUNT uint16
 }
 
+type Question struct {
+	Name  string
+	Type  uint16
+	Class uint16
+}
+
 func NewMessage() *Message {
 	return &Message{}
+}
+
+func (m *Message) Serialize() []byte {
+	messageBuf := []byte{}
+	header := NewHeader()
+	headerBuf := header.SerializeHeader()
+	question := NewQuestion("codecrafters.io", 1, 1)
+	questionBuf := question.SerializeQuestion()
+
+	messageBuf = append(messageBuf, headerBuf...)
+	messageBuf = append(messageBuf, questionBuf...)
+
+	return messageBuf
 }
 
 func NewHeader() *Header {
@@ -39,16 +59,15 @@ func NewHeader() *Header {
 		RA:      0,
 		Z:       0,
 		RCODE:   0,
-		QDCOUNT: 0,
+		QDCOUNT: 1,
 		ANCOUNT: 0,
 		NSCOUNT: 0,
 		ARCOUNT: 0,
 	}
 }
 
-func (m *Message) Serialize() []byte {
-	header := NewHeader()
-	buf := make([]byte, 0, 12)
+func (header *Header) SerializeHeader() []byte {
+	headerBuf := make([]byte, 0, 12)
 	flags := uint16(0)
 	flags |= uint16(header.QR) << 15
 	flags |= uint16(header.OPCODE) << 11
@@ -58,12 +77,37 @@ func (m *Message) Serialize() []byte {
 	flags |= uint16(header.RA) << 7
 	flags |= uint16(header.Z) << 4
 	flags |= uint16(header.RCODE)
-	buf = binary.BigEndian.AppendUint16(buf, header.ID)
-	buf = binary.BigEndian.AppendUint16(buf, flags)
-	buf = binary.BigEndian.AppendUint16(buf, header.QDCOUNT)
-	buf = binary.BigEndian.AppendUint16(buf, header.ANCOUNT)
-	buf = binary.BigEndian.AppendUint16(buf, header.NSCOUNT)
-	buf = binary.BigEndian.AppendUint16(buf, header.ARCOUNT)
+	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.ID)
+	headerBuf = binary.BigEndian.AppendUint16(headerBuf, flags)
+	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.QDCOUNT)
+	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.ANCOUNT)
+	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.NSCOUNT)
+	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.ARCOUNT)
 
-	return buf
+	return headerBuf
+}
+
+func NewQuestion(name string, qtype uint16, qclass uint16) *Question {
+	return &Question{
+		Name:  name,
+		Type:  qtype,
+		Class: qclass,
+	}
+}
+
+func (question *Question) SerializeQuestion() []byte {
+	questionBuf := []byte{}
+
+	qNameBuf := []byte{}
+	for _, label := range strings.Split(question.Name, ".") {
+		qNameBuf = append(qNameBuf, byte(len(label)))
+		qNameBuf = append(qNameBuf, []byte(label)...)
+	}
+	qNameBuf = append(qNameBuf, byte(0))
+
+	questionBuf = append(questionBuf, qNameBuf...)
+	questionBuf = binary.BigEndian.AppendUint16(questionBuf, question.Type)
+	questionBuf = binary.BigEndian.AppendUint16(questionBuf, question.Class)
+
+	return questionBuf
 }
