@@ -1,12 +1,31 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
+	"log"
 	"net"
 )
 
 // Ensures gofmt doesn't remove the "net" import in stage 1 (feel free to remove this!)
-var _ = net.ListenUDP
+// var _ = net.ListenUDP
+
+type message struct {
+	ID      uint16
+	QR      uint8
+	OPCODE  uint8
+	AA      uint8
+	TC      uint8
+	RD      uint8
+	RA      uint8
+	Z       uint8
+	RCODE   uint8
+	QDCOUNT uint16
+	ANCOUNT uint16
+	NSCOUNT uint16
+	ARCOUNT uint16
+}
 
 func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -29,6 +48,8 @@ func main() {
 
 	buf := make([]byte, 512)
 
+	fmt.Println("Listening for incoming UDP packets on port 2053...")
+
 	for {
 		size, source, err := udpConn.ReadFromUDP(buf)
 		if err != nil {
@@ -40,7 +61,28 @@ func main() {
 		fmt.Printf("Received %d bytes from %s: %s\n", size, source, receivedData)
 
 		// Create an empty response
-		response := []byte{}
+		message := message{
+			ID:      1234,
+			QR:      1,
+			OPCODE:  0,
+			AA:      0,
+			TC:      0,
+			RD:      0,
+			RA:      0,
+			Z:       0,
+			RCODE:   0,
+			QDCOUNT: 0,
+			ANCOUNT: 0,
+			NSCOUNT: 0,
+			ARCOUNT: 0,
+		}
+		buf := bytes.Buffer{}
+		enc := gob.NewEncoder(&buf)
+		err = enc.Encode(message)
+		if err != nil {
+			log.Fatal("Error encoding message: ", err)
+		}
+		response := buf.Bytes()
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {
