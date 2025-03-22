@@ -30,11 +30,17 @@ func main() {
 			break
 		}
 
-		receivedData := string(buf[:size])
-		fmt.Printf("Received %d bytes from %s: %s\n", size, source, receivedData)
+		receivedData := buf[:size]
+		receivedHeader := DeserializeHeader(receivedData[:12])
+		fmt.Printf("Received %d bytes from %s: %v\n", size, source, receivedData)
 
-		message := NewMessage()
+		header := NewHeader(receivedHeader.ID, receivedHeader.OPCODE, receivedHeader.RD)
+		question := NewQuestion("codecrafters.io", 1, 1)
+		answer := NewAnswer("codecrafters.io", 1, 1, 60, 4, "1.1.1.1")
+		message := NewMessage(header, question, answer)
 		response := message.Serialize()
+
+		fmt.Printf("Sending response: %v\n", response)
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {

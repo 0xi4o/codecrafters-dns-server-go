@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 type Message struct {
@@ -41,11 +42,11 @@ type Answer struct {
 	Data   string
 }
 
-func NewMessage() *Message {
+func NewMessage(header *Header, question *Question, answer *Answer) *Message {
 	return &Message{
-		Header:   *NewHeader(),
-		Question: *NewQuestion("codecrafters.io", 1, 1),
-		Answer:   *NewAnswer("codecrafters.io", 1, 1, 60, 4, "1.1.1.1"),
+		Header:   *header,
+		Question: *question,
+		Answer:   *answer,
 	}
 }
 
@@ -62,14 +63,14 @@ func (m *Message) Serialize() []byte {
 	return messageBuf
 }
 
-func NewHeader() *Header {
-	return &Header{
-		ID:      1234,
+func NewHeader(id uint16, opcode uint8, rd uint8) *Header {
+	header := &Header{
+		ID:      id,
 		QR:      1,
-		OPCODE:  0,
+		OPCODE:  opcode,
 		AA:      0,
 		TC:      0,
-		RD:      0,
+		RD:      rd,
 		RA:      0,
 		Z:       0,
 		RCODE:   0,
@@ -78,6 +79,13 @@ func NewHeader() *Header {
 		NSCOUNT: 0,
 		ARCOUNT: 0,
 	}
+	if opcode == 0 {
+		header.RCODE = 0
+	} else {
+		header.RCODE = 4
+	}
+
+	return header
 }
 
 func (header *Header) SerializeHeader() []byte {
@@ -99,6 +107,27 @@ func (header *Header) SerializeHeader() []byte {
 	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.ARCOUNT)
 
 	return headerBuf
+}
+
+func DeserializeHeader(buf []byte) Header {
+	flags := binary.BigEndian.Uint16(buf[2:4])
+	header := Header{
+		ID:      binary.BigEndian.Uint16(buf[:2]),
+		QR:      uint8(flags >> 15 & 0x1),
+		OPCODE:  uint8(flags >> 11 & 0xF),
+		AA:      uint8(flags >> 10 & 0x1),
+		TC:      uint8(flags >> 9 & 0x1),
+		RD:      uint8(flags >> 8 & 0x1),
+		RA:      uint8(flags >> 7 & 0x1),
+		Z:       uint8(flags >> 4 & 0x1),
+		RCODE:   uint8(flags & 0xF),
+		QDCOUNT: binary.BigEndian.Uint16(buf[4:6]),
+		ANCOUNT: binary.BigEndian.Uint16(buf[6:8]),
+		NSCOUNT: binary.BigEndian.Uint16(buf[8:10]),
+		ARCOUNT: binary.BigEndian.Uint16(buf[10:12]),
+	}
+	fmt.Printf("header: %v\n", header)
+	return header
 }
 
 func NewQuestion(name string, qtype uint16, qclass uint16) *Question {
