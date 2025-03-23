@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"strings"
@@ -84,4 +85,41 @@ func SerializeIPv4(ipStr string) []byte {
 		return []byte{0, 0, 0, 0}
 	}
 	return []byte(ip)
+}
+
+func ExtractAnswerFromResponse(response []byte, offset int) (Answer, error) {
+	if offset >= len(response) {
+		return Answer{}, fmt.Errorf("offset beyond response length")
+	}
+
+	name, nameOffset := DeserializeDomainOrIP(response, offset)
+	offset = nameOffset
+
+	if offset+10 > len(response) {
+		return Answer{}, fmt.Errorf("response too short for answer fields")
+	}
+
+	ttl := binary.BigEndian.Uint32(response[offset+4 : offset+8])
+
+	if offset+10+4 > len(response) {
+		return Answer{}, fmt.Errorf("response too short for IPv4 address")
+	}
+
+	ipData := response[offset+10 : offset+14]
+	ipStr := fmt.Sprintf("%d.%d.%d.%d", ipData[0], ipData[1], ipData[2], ipData[3])
+
+	return Answer{
+		Name:   name,
+		Type:   1, // A record
+		Class:  1, // IN class
+		TTL:    ttl,
+		Length: 4, // IPv4 address is always 4 bytes
+		Data:   ipStr,
+	}, nil
+}
+
+func CalculateAnswerSize(answer Answer) int {
+	// Size for A records: name + type(2) + class(2) + TTL(4) + length(2) + IPv4(4)
+	nameSize := len(SerializeDomainOrIP(answer.Name))
+	return nameSize + 14 // 2+2+4+2+4 = 14 bytes plus the name
 }
