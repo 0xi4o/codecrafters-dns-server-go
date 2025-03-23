@@ -1,14 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
+	"fmt"
 )
 
 type Message struct {
-	Header   Header
-	Question Question
-	Answer   Answer
+	Header    Header
+	Questions []Question
+	Answers   []Answer
 }
 
 type Header struct {
@@ -42,29 +42,37 @@ type Answer struct {
 	Data   string
 }
 
-func NewMessage(header *Header, question *Question, answer *Answer) *Message {
+func NewMessage(header Header, questions []Question, answers []Answer) *Message {
 	return &Message{
-		Header:   *header,
-		Question: *question,
-		Answer:   *answer,
+		Header:    header,
+		Questions: questions,
+		Answers:   answers,
 	}
 }
 
 func (m *Message) Serialize() []byte {
 	messageBuf := []byte{}
 	headerBuf := m.Header.SerializeHeader()
-	questionBuf := m.Question.SerializeQuestion()
-	answerBuf := m.Answer.SerializeAnswer()
+	questionBufs := []byte{}
+	for i := range m.Questions {
+		questionBuf := m.Questions[i].SerializeQuestion()
+		questionBufs = append(questionBufs, questionBuf...)
+	}
+	answerBufs := []byte{}
+	for i := range m.Answers {
+		answerBuf := m.Answers[i].SerializeAnswer()
+		answerBufs = append(answerBufs, answerBuf...)
+	}
 
 	messageBuf = append(messageBuf, headerBuf...)
-	messageBuf = append(messageBuf, questionBuf...)
-	messageBuf = append(messageBuf, answerBuf...)
+	messageBuf = append(messageBuf, questionBufs...)
+	messageBuf = append(messageBuf, answerBufs...)
 
 	return messageBuf
 }
 
-func NewHeader(id uint16, opcode uint8, rd uint8) *Header {
-	header := &Header{
+func NewHeader(id uint16, opcode uint8, rd uint8, qdcount uint16) Header {
+	header := Header{
 		ID:      id,
 		QR:      1,
 		OPCODE:  opcode,
@@ -74,8 +82,8 @@ func NewHeader(id uint16, opcode uint8, rd uint8) *Header {
 		RA:      0,
 		Z:       0,
 		RCODE:   0,
-		QDCOUNT: 1,
-		ANCOUNT: 1,
+		QDCOUNT: qdcount,
+		ANCOUNT: qdcount,
 		NSCOUNT: 0,
 		ARCOUNT: 0,
 	}
@@ -99,6 +107,7 @@ func (header *Header) SerializeHeader() []byte {
 	flags |= uint16(header.RA) << 7
 	flags |= uint16(header.Z) << 4
 	flags |= uint16(header.RCODE)
+	fmt.Printf("Sending Flags: %d\n", flags)
 	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.ID)
 	headerBuf = binary.BigEndian.AppendUint16(headerBuf, flags)
 	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.QDCOUNT)
@@ -111,6 +120,7 @@ func (header *Header) SerializeHeader() []byte {
 
 func DeserializeHeader(buf []byte) Header {
 	flags := binary.BigEndian.Uint16(buf[2:4])
+	fmt.Printf("Received Flags: %d\n", flags)
 	return Header{
 		ID:      binary.BigEndian.Uint16(buf[:2]),
 		QR:      uint8(flags >> 15 & 0x1),
@@ -146,13 +156,20 @@ func (question *Question) SerializeQuestion() []byte {
 	return questionBuf
 }
 
-func DeserializeQuestion(buf []byte) Question {
-	name, flags, _ := bytes.Cut(buf, []byte{0})
-	return Question{
-		Name:  DeserializeDomainOrIP(name),
-		Type:  binary.BigEndian.Uint16(flags[:2]),
-		Class: binary.BigEndian.Uint16(flags[2:]),
+func DeserializeQuestion(buf []byte) (Question, int) {
+	domainName, offset := DeserializeDomainOrIP(buf, 0)
+	fmt.Printf("domainName: %s\n", domainName)
+
+	// Make sure we have enough bytes for Type and Class (4 bytes total)
+	if offset+4 > len(buf) {
+		return Question{}, offset
 	}
+
+	return Question{
+		Name:  domainName,
+		Type:  binary.BigEndian.Uint16(buf[offset : offset+2]),
+		Class: binary.BigEndian.Uint16(buf[offset+2 : offset+4]),
+	}, offset + 4
 }
 
 func NewAnswer(name string, atype, aclass uint16, ttl uint32, length uint16, data string) *Answer {
@@ -173,9 +190,17 @@ func (answer *Answer) SerializeAnswer() []byte {
 	answerBuf = binary.BigEndian.AppendUint16(answerBuf, answer.Type)
 	answerBuf = binary.BigEndian.AppendUint16(answerBuf, answer.Class)
 	answerBuf = binary.BigEndian.AppendUint32(answerBuf, answer.TTL)
-	answerBuf = binary.BigEndian.AppendUint16(answerBuf, answer.Length)
-	dataBuf := SerializeDomainOrIP(answer.Data)
-	answerBuf = append(answerBuf, dataBuf...)
+
+	// Different handling based on record type
+	if answer.Type == 1 && answer.Class == 1 { // A record, IN class
+		ipBytes := SerializeIPv4(answer.Data)
+		answerBuf = binary.BigEndian.AppendUint16(answerBuf, uint16(len(ipBytes)))
+		answerBuf = append(answerBuf, ipBytes...)
+	} else {
+		dataBuf := SerializeDomainOrIP(answer.Data)
+		answerBuf = binary.BigEndian.AppendUint16(answerBuf, uint16(len(dataBuf)))
+		answerBuf = append(answerBuf, dataBuf...)
+	}
 
 	return answerBuf
 }

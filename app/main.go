@@ -31,17 +31,36 @@ func main() {
 		}
 
 		receivedData := buf[:size]
+		// fmt.Printf("Received data: %v\n", receivedData)
 		receivedHeader := DeserializeHeader(receivedData[:12])
-		receivedQuestion := DeserializeQuestion(receivedData[12:])
-		fmt.Printf("Received %d bytes from %s: %v\n", size, source, receivedData)
+		// fmt.Printf("Received header: %v\n", receivedHeader)
+		receivedQuestions := []Question{}
+		offset := 12 // Start after the header
+		for i := uint16(0); i < receivedHeader.QDCOUNT; i++ {
+			receivedQuestion, newOffset := DeserializeQuestion(receivedData[offset:])
+			receivedQuestions = append(receivedQuestions, receivedQuestion)
+			offset += newOffset
+		}
 
-		header := NewHeader(receivedHeader.ID, receivedHeader.OPCODE, receivedHeader.RD)
-		question := NewQuestion(receivedQuestion.Name, receivedQuestion.Type, receivedQuestion.Class)
-		answer := NewAnswer(receivedQuestion.Name, receivedQuestion.Type, receivedQuestion.Class, 60, 4, "1.1.1.1")
-		message := NewMessage(header, question, answer)
+		// fmt.Printf("Received questions: %v\n", receivedQuestions)
+
+		header := NewHeader(receivedHeader.ID, receivedHeader.OPCODE, receivedHeader.RD, receivedHeader.QDCOUNT)
+		questions := []Question{}
+
+		answers := []Answer{}
+		for i := uint16(0); i < header.QDCOUNT; i++ {
+			question := NewQuestion(receivedQuestions[i].Name, receivedQuestions[i].Type, receivedQuestions[i].Class)
+			questions = append(questions, *question)
+			answer := NewAnswer(receivedQuestions[i].Name, receivedQuestions[i].Type, receivedQuestions[i].Class, 60, 4, "1.1.1.1")
+			answers = append(answers, *answer)
+		}
+		message := NewMessage(header, questions, answers)
 		response := message.Serialize()
 
-		fmt.Printf("Sending answer: %v\n", answer)
+		// fmt.Printf("Sending header: %v\n", header)
+		// fmt.Printf("Sending questions: %v\n", questions)
+		// fmt.Printf("Sending answers: %v\n", answers)
+		// fmt.Printf("Sending response: %v\n", response)
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {
