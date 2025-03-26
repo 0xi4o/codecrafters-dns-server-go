@@ -107,7 +107,6 @@ func (header *Header) SerializeHeader() []byte {
 	flags |= uint16(header.RA) << 7
 	flags |= uint16(header.Z) << 4
 	flags |= uint16(header.RCODE)
-	fmt.Printf("Sending Flags: %d\n", flags)
 	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.ID)
 	headerBuf = binary.BigEndian.AppendUint16(headerBuf, flags)
 	headerBuf = binary.BigEndian.AppendUint16(headerBuf, header.QDCOUNT)
@@ -120,7 +119,6 @@ func (header *Header) SerializeHeader() []byte {
 
 func DeserializeHeader(buf []byte) Header {
 	flags := binary.BigEndian.Uint16(buf[2:4])
-	fmt.Printf("Received Flags: %d\n", flags)
 	return Header{
 		ID:      binary.BigEndian.Uint16(buf[:2]),
 		QR:      uint8(flags >> 15 & 0x1),
@@ -203,4 +201,35 @@ func (answer *Answer) SerializeAnswer() []byte {
 	}
 
 	return answerBuf
+}
+
+func DeserializeAnswer(response []byte, offset int) Answer {
+	if offset >= len(response) {
+		fmt.Println("offset beyond response length")
+	}
+
+	name, nameOffset := DeserializeDomainOrIP(response, offset)
+	offset = nameOffset
+
+	if offset+10 > len(response) {
+		fmt.Println("response too short for answer fields")
+	}
+
+	ttl := binary.BigEndian.Uint32(response[offset+4 : offset+8])
+
+	if offset+10+4 > len(response) {
+		fmt.Println("response too short for IPv4 address")
+	}
+
+	ipData := response[offset+10 : offset+14]
+	ipStr := fmt.Sprintf("%d.%d.%d.%d", ipData[0], ipData[1], ipData[2], ipData[3])
+
+	return Answer{
+		Name:   name,
+		Type:   1,
+		Class:  1,
+		TTL:    ttl,
+		Length: 4,
+		Data:   ipStr,
+	}
 }
