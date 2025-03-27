@@ -71,10 +71,10 @@ func (m *Message) Serialize() []byte {
 	return messageBuf
 }
 
-func NewHeader(id uint16, opcode uint8, rd uint8, qdcount uint16) Header {
+func NewHeader(id uint16, qr uint8, opcode uint8, rd uint8, qdcount uint16, ancount uint16) Header {
 	header := Header{
 		ID:      id,
-		QR:      1,
+		QR:      qr,
 		OPCODE:  opcode,
 		AA:      0,
 		TC:      0,
@@ -83,7 +83,7 @@ func NewHeader(id uint16, opcode uint8, rd uint8, qdcount uint16) Header {
 		Z:       0,
 		RCODE:   0,
 		QDCOUNT: qdcount,
-		ANCOUNT: qdcount,
+		ANCOUNT: ancount,
 		NSCOUNT: 0,
 		ARCOUNT: 0,
 	}

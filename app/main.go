@@ -49,7 +49,7 @@ func main() {
 		receivedData := buf[:size]
 		receivedHeader := DeserializeHeader(receivedData[:12])
 		offset := 12 // Start after the header
-		header := NewHeader(receivedHeader.ID, receivedHeader.OPCODE, receivedHeader.RD, receivedHeader.QDCOUNT)
+		header := NewHeader(receivedHeader.ID, receivedHeader.QR, receivedHeader.OPCODE, receivedHeader.RD, receivedHeader.QDCOUNT, 0)
 		questions := []Question{}
 		answers := []Answer{}
 		for i := uint16(0); i < receivedHeader.QDCOUNT; i++ {
@@ -81,6 +81,8 @@ func main() {
 			}
 		}
 
+		header.QR = 1
+		header.ANCOUNT = uint16(len(answers))
 		message := NewMessage(header, questions, answers)
 		response := message.Serialize()
 
