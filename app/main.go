@@ -62,6 +62,16 @@ func main() {
 			break
 		}
 
+		dnsHeader.QR = true
+		dnsHeader.AA = false
+		dnsHeader.TC = false
+		dnsHeader.RA = false
+		dnsHeader.Z = 0
+		if dnsHeader.OPCODE == 0 {
+			dnsHeader.RCODE = 0
+		} else {
+			dnsHeader.RCODE = 4
+		}
 		dnsHeader.QDCOUNT = 1
 		dnsHeader.ANCOUNT = 1
 		responseHeader, err := dnsHeader.MarshalBinary()
