@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
-	"strings"
 )
 
 type DNSQuestion struct {
@@ -15,12 +13,11 @@ type DNSQuestion struct {
 
 func (q *DNSQuestion) MarshalBinary() (data []byte, err error) {
 	data = []byte{}
-	labels := strings.Split(q.Name, ".")
-	for _, label := range labels {
-		length := byte(len(label))
-		data = append(data, length)
-		data = append(data, []byte(label)...)
+	encoded, err := encodeDomainName(q.Name)
+	if err != nil {
+		return []byte{}, err
 	}
+	data = append(data, encoded...)
 	data = append(data, 0x00)
 	data = binary.BigEndian.AppendUint16(data, q.Type)
 	data = binary.BigEndian.AppendUint16(data, q.Class)
@@ -28,7 +25,7 @@ func (q *DNSQuestion) MarshalBinary() (data []byte, err error) {
 }
 
 func (q *DNSQuestion) UnmarshalBinary(buf []byte) error {
-	name, offset, err := parseName(buf, 0)
+	name, offset, err := decodeDomainName(buf, 0)
 	if err != nil {
 		return err
 	}
@@ -38,28 +35,4 @@ func (q *DNSQuestion) UnmarshalBinary(buf []byte) error {
 	q.Class = binary.BigEndian.Uint16(buf[offset+2 : offset+4])
 
 	return nil
-}
-
-func parseName(buf []byte, offset int) (string, int, error) {
-	labels := []string{}
-	for {
-		if offset >= len(buf) {
-			return "", 0, fmt.Errorf("buffer too short for parsing name")
-		}
-
-		length := int(buf[offset])
-		offset++
-
-		if length == 0 {
-			break
-		}
-
-		if offset+length > len(buf) {
-			return "", 0, fmt.Errorf("label length exceeds buffer")
-		}
-
-		labels = append(labels, string(buf[offset:offset+length]))
-		offset += length
-	}
-	return strings.Join(labels, "."), offset, nil
 }

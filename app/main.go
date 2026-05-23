@@ -14,12 +14,10 @@ type DNSMarshelerUnmarshaler interface {
 type DNSMessage struct {
 	Header     DNSHeader
 	Question   DNSQuestion
-	Answers    []_DNSResourceRecord
-	Authority  []_DNSResourceRecord
-	Additional []_DNSResourceRecord
+	Answers    []DNSResourceRecord
+	Authority  []DNSResourceRecord
+	Additional []DNSResourceRecord
 }
-
-type _DNSResourceRecord struct{}
 
 // Ensures gofmt doesn't remove the "net" import in stage 1 (feel free to remove this!)
 var _ = net.ListenUDP
@@ -65,6 +63,7 @@ func main() {
 		}
 
 		dnsHeader.QDCOUNT = 1
+		dnsHeader.ANCOUNT = 1
 		responseHeader, err := dnsHeader.MarshalBinary()
 		if err != nil {
 			fmt.Println("Error marshaling header struct:", err)
@@ -76,10 +75,26 @@ func main() {
 			break
 		}
 
+		answer := DNSResourceRecord{
+			Name:     dnsQuestion.Name,
+			Type:     dnsQuestion.Type,
+			Class:    dnsQuestion.Class,
+			TTL:      60,
+			RDLENGTH: 4,
+			RDATA:    "8.8.8.8",
+		}
+
+		responseAnswer, err := answer.MarshalBinary()
+		if err != nil {
+			fmt.Println("Error marshaling answer (resource record) struct:", err)
+			break
+		}
+
 		// Create an empty response
 		response := []byte{}
 		response = append(response, responseHeader...)
 		response = append(response, responseQuestion...)
+		response = append(response, responseAnswer...)
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {
