@@ -20,8 +20,8 @@ func (q *DNSQuestion) MarshalBinary() (data []byte, err error) {
 		length := byte(len(label))
 		data = append(data, length)
 		data = append(data, []byte(label)...)
+		data = append(data, 0x00)
 	}
-	data = binary.BigEndian.AppendUint16(data, 0x00)
 	data = binary.BigEndian.AppendUint16(data, q.Type)
 	data = binary.BigEndian.AppendUint16(data, q.Class)
 	return data, nil
