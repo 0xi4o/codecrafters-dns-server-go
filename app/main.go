@@ -70,10 +70,16 @@ func main() {
 			fmt.Println("Error marshaling header struct:", err)
 			break
 		}
+		responseQuestion, err := dnsQuestion.MarshalBinary()
+		if err != nil {
+			fmt.Println("Error marshaling header struct:", err)
+			break
+		}
 
 		// Create an empty response
 		response := []byte{}
 		response = append(response, responseHeader...)
+		response = append(response, responseQuestion...)
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {
