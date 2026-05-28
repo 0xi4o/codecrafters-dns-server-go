@@ -38,7 +38,7 @@ func (h *DNSHeader) MarshalBinary() (data []byte, err error) {
 		part1 |= 0b0000_0010
 	}
 	if h.RD {
-		part1 |= 0b1000_0001
+		part1 |= 0b0000_0001
 	}
 	// RA, Z, and RCODE
 	if h.RA {
