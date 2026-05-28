@@ -12,6 +12,15 @@ type DNSMessage struct {
 	Additional []DNSResourceRecord
 }
 
+func NewDNSMessage() DNSMessage {
+	header := DNSHeader{}
+	questions := []DNSQuestion{}
+	return DNSMessage{
+		Header:    header,
+		Questions: questions,
+	}
+}
+
 func (m *DNSMessage) MarshalBinary() (data []byte, err error) {
 	data = []byte{}
 	responseHeader, err := m.Header.MarshalBinary()

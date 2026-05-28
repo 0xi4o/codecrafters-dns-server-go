@@ -40,7 +40,7 @@ func main() {
 			break
 		}
 
-		var message DNSMessage
+		message := NewDNSMessage()
 		err = message.UnmarshalBinary(buf)
 		if err != nil {
 			fmt.Println("Error unmarshaling message:", err)
