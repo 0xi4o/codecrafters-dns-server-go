@@ -18,7 +18,7 @@ func main() {
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
-	resolver := flag.String("resolve", "1.1.1.1:53", "Address to forward the DNS query to")
+	resolver := flag.String("resolver", "1.1.1.1:53", "Address to forward the DNS query to")
 	flag.Parse()
 
 	udpAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:2053")
@@ -37,17 +37,19 @@ func main() {
 	var resolverUDPConn *net.UDPConn
 	if *resolver != "" {
 		parts := strings.Split(*resolver, ":")
-		host, portStr := parts[0], parts[1]
+		fmt.Println(parts)
+		hostStr, portStr := parts[0], parts[1]
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
 			fmt.Println("Invalid resolver port: ", err)
 			return
 		}
 		resolverAddr := net.UDPAddr{
-			IP:   []byte(host),
+			IP:   net.ParseIP(hostStr),
 			Port: port,
 		}
-		resolverUDPConn, err = net.DialUDP("udp", &resolverAddr, nil)
+		fmt.Println(resolverAddr)
+		resolverUDPConn, err = net.DialUDP("udp", nil, &resolverAddr)
 		if err != nil {
 			fmt.Println("Cannot forward query to target: ", err)
 			return
