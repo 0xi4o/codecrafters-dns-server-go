@@ -66,31 +66,50 @@ func main() {
 			break
 		}
 
-		_, err = resolverUDPConn.Write(buf)
-		if err != nil {
-			fmt.Println("Error writing data to resolver:", err)
-			break
-		}
-
-		_, _, err = resolverUDPConn.ReadFromUDP(resolverBuf)
-		if err != nil {
-			fmt.Println("Error reading data from resolver:", err)
-			break
-		}
-
 		message := NewDNSMessage()
-		resolverMessage := NewDNSMessage()
-
 		err = message.UnmarshalBinary(buf)
 		if err != nil {
 			fmt.Println("Error unmarshaling message:", err)
 			break
 		}
 
-		err = resolverMessage.UnmarshalBinary(resolverBuf)
-		if err != nil {
-			fmt.Println("Error unmarshaling message from resolver:", err)
-			break
+		allAnswers := []DNSResourceRecord{}
+		for _, question := range message.Questions {
+			singleMessage := NewDNSMessage()
+
+			singleMessage.Header.ID = message.Header.ID
+			singleMessage.Header.RD = message.Header.RD
+			singleMessage.Header.OPCODE = message.Header.OPCODE
+			singleMessage.Header.QDCOUNT = 1
+
+			singleMessage.Questions = []DNSQuestion{question}
+
+			queryBuf, err := singleMessage.MarshalBinary()
+			if err != nil {
+				fmt.Println("Error marshaling single message:", err)
+				break
+			}
+
+			_, err = resolverUDPConn.Write(queryBuf)
+			if err != nil {
+				fmt.Println("Error writing data to resolver:", err)
+				break
+			}
+
+			rn, err := resolverUDPConn.Read(resolverBuf)
+			if err != nil {
+				fmt.Println("Error reading data from resolver:", err)
+				break
+			}
+
+			resolverMessage := NewDNSMessage()
+			err = resolverMessage.UnmarshalBinary(resolverBuf[:rn])
+			if err != nil {
+				fmt.Println("Error unmarshaling message from resolver:", err)
+				break
+			}
+
+			allAnswers = append(allAnswers, resolverMessage.Answers...)
 		}
 
 		message.Header.QR = true
@@ -103,10 +122,9 @@ func main() {
 		} else {
 			message.Header.RCODE = 4
 		}
-		message.Header.ANCOUNT = message.Header.QDCOUNT
-
 		// replace message.Answers with answers from resolver
-		message.Answers = resolverMessage.Answers
+		message.Answers = allAnswers
+		message.Header.ANCOUNT = uint16(len(allAnswers))
 
 		response, err := message.MarshalBinary()
 		if err != nil {
