@@ -47,6 +47,8 @@ func main() {
 			break
 		}
 
+		fmt.Println(message)
+
 		message.Header.QR = true
 		message.Header.AA = false
 		message.Header.TC = false

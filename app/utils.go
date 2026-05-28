@@ -17,7 +17,7 @@ func encodeARecord(ip string) ([]byte, error) {
 		if err != nil {
 			return []byte{}, fmt.Errorf("invalid part at index: %d", i)
 		}
-		data = append(data, uint8(num)&0x0F)
+		data = append(data, uint8(num))
 	}
 	return data, nil
 }
@@ -60,6 +60,9 @@ func decodeDomainName(buf []byte, offset int) (string, int, error) {
 		offset++
 
 		if length == 0 {
+			if finalOffset == -1 {
+				finalOffset = offset
+			}
 			break
 		}
 
@@ -69,10 +72,6 @@ func decodeDomainName(buf []byte, offset int) (string, int, error) {
 
 		labels = append(labels, string(buf[offset:offset+length]))
 		offset += length
-
-		if finalOffset == -1 {
-			finalOffset = offset
-		}
 	}
 	return strings.Join(labels, "."), finalOffset, nil
 }

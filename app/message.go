@@ -62,17 +62,17 @@ func (m *DNSMessage) UnmarshalBinary(buf []byte) error {
 		fmt.Println("Error unmarshaling header data:", err)
 	}
 
-	offset := 0
+	offset := 12
 	for range m.Header.QDCOUNT {
 		dnsQuestion := DNSQuestion{
-			Offset: 12,
+			Offset: offset,
 		}
 		err = dnsQuestion.UnmarshalBinary(buf)
 		if err != nil {
 			fmt.Println("Error unmarshaling questions data:", err)
 			break
 		}
-		offset += dnsQuestion.Offset
+		offset = dnsQuestion.Offset
 		m.Questions = append(m.Questions, dnsQuestion)
 	}
 
