@@ -11,6 +11,7 @@ type DNSResourceRecord struct {
 	TTL      uint32
 	RDLENGTH uint16
 	RDATA    string
+	Offset   int
 }
 
 func (rr *DNSResourceRecord) MarshalBinary() (data []byte, err error) {
@@ -33,16 +34,16 @@ func (rr *DNSResourceRecord) MarshalBinary() (data []byte, err error) {
 	return data, nil
 }
 
-// func (rr *DNSResourceRecord) UnmarshalBinary(buf []byte) error {
-// 	name, offset, err := decodeDomainName(buf, 0)
-// 	if err != nil {
-// 		return err
-// 	}
+func (rr *DNSResourceRecord) UnmarshalBinary(buf []byte) error {
+	name, offset, err := decodeDomainName(buf, rr.Offset)
+	if err != nil {
+		return err
+	}
 
-// 	rr.Name = name
-// 	rr.Type = binary.BigEndian.Uint16(buf[offset : offset+2])
-// 	rr.Class = binary.BigEndian.Uint16(buf[offset+2 : offset+4])
-// 	rr.TTL = binary.BigEndian.Uint32(buf[offset+4 : offset+8])
-// 	rr.RDLENGTH = binary.BigEndian.Uint16(buf[offset+8 : offset+10])
-// 	return nil
-// }
+	rr.Name = name
+	rr.Type = binary.BigEndian.Uint16(buf[offset : offset+2])
+	rr.Class = binary.BigEndian.Uint16(buf[offset+2 : offset+4])
+	rr.TTL = binary.BigEndian.Uint32(buf[offset+4 : offset+8])
+	rr.RDLENGTH = binary.BigEndian.Uint16(buf[offset+8 : offset+10])
+	return nil
+}

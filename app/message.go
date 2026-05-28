@@ -76,5 +76,19 @@ func (m *DNSMessage) UnmarshalBinary(buf []byte) error {
 		m.Questions = append(m.Questions, dnsQuestion)
 	}
 
+	answerOffset := offset
+	for range m.Header.ANCOUNT {
+		dnsAnswer := DNSResourceRecord{
+			Offset: answerOffset,
+		}
+		err = dnsAnswer.UnmarshalBinary(buf)
+		if err != nil {
+			fmt.Println("Error unmarshaling questions data:", err)
+			break
+		}
+		answerOffset += dnsAnswer.Offset
+		m.Answers = append(m.Answers, dnsAnswer)
+	}
+
 	return nil
 }
