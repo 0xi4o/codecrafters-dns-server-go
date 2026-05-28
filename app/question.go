@@ -25,7 +25,7 @@ func (q *DNSQuestion) MarshalBinary() (data []byte, err error) {
 }
 
 func (q *DNSQuestion) UnmarshalBinary(buf []byte) error {
-	name, offset, err := decodeDomainName(buf, 0)
+	name, offset, err := decodeDomainName(buf, q.Offset)
 	if err != nil {
 		return err
 	}
@@ -33,6 +33,7 @@ func (q *DNSQuestion) UnmarshalBinary(buf []byte) error {
 	q.Name = name
 	q.Type = binary.BigEndian.Uint16(buf[offset : offset+2])
 	q.Class = binary.BigEndian.Uint16(buf[offset+2 : offset+4])
+	q.Offset = offset + 4
 
 	return nil
 }

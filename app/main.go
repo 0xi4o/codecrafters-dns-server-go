@@ -11,14 +11,6 @@ type DNSMarshelerUnmarshaler interface {
 	encoding.BinaryUnmarshaler
 }
 
-type DNSMessage struct {
-	Header     DNSHeader
-	Question   DNSQuestion
-	Answers    []DNSResourceRecord
-	Authority  []DNSResourceRecord
-	Additional []DNSResourceRecord
-}
-
 // Ensures gofmt doesn't remove the "net" import in stage 1 (feel free to remove this!)
 var _ = net.ListenUDP
 
@@ -48,63 +40,30 @@ func main() {
 			break
 		}
 
-		var dnsHeader DNSHeader
-		err = dnsHeader.UnmarshalBinary(buf[:12])
+		var message DNSMessage
+		err = message.UnmarshalBinary(buf)
 		if err != nil {
-			fmt.Println("Error unmarshaling header data:", err)
+			fmt.Println("Error unmarshaling message:", err)
 			break
 		}
 
-		var dnsQuestion DNSQuestion
-		err = dnsQuestion.UnmarshalBinary(buf[12:])
-		if err != nil {
-			fmt.Println("Error unmarshaling header data:", err)
-			break
-		}
-
-		dnsHeader.QR = true
-		dnsHeader.AA = false
-		dnsHeader.TC = false
-		dnsHeader.RA = false
-		dnsHeader.Z = 0
-		if dnsHeader.OPCODE == 0 {
-			dnsHeader.RCODE = 0
+		message.Header.QR = true
+		message.Header.AA = false
+		message.Header.TC = false
+		message.Header.RA = false
+		message.Header.Z = 0
+		if message.Header.OPCODE == 0 {
+			message.Header.RCODE = 0
 		} else {
-			dnsHeader.RCODE = 4
+			message.Header.RCODE = 4
 		}
-		dnsHeader.QDCOUNT = 1
-		dnsHeader.ANCOUNT = 1
-		responseHeader, err := dnsHeader.MarshalBinary()
+		message.Header.ANCOUNT = message.Header.QDCOUNT
+
+		response, err := message.MarshalBinary()
 		if err != nil {
-			fmt.Println("Error marshaling header struct:", err)
+			fmt.Println("Error unmarshaling message:", err)
 			break
 		}
-		responseQuestion, err := dnsQuestion.MarshalBinary()
-		if err != nil {
-			fmt.Println("Error marshaling header struct:", err)
-			break
-		}
-
-		answer := DNSResourceRecord{
-			Name:     dnsQuestion.Name,
-			Type:     dnsQuestion.Type,
-			Class:    dnsQuestion.Class,
-			TTL:      60,
-			RDLENGTH: 4,
-			RDATA:    "8.8.8.8",
-		}
-
-		responseAnswer, err := answer.MarshalBinary()
-		if err != nil {
-			fmt.Println("Error marshaling answer (resource record) struct:", err)
-			break
-		}
-
-		// Create an empty response
-		response := []byte{}
-		response = append(response, responseHeader...)
-		response = append(response, responseQuestion...)
-		response = append(response, responseAnswer...)
 
 		_, err = udpConn.WriteToUDP(response, source)
 		if err != nil {

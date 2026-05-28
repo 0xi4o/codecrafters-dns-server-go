@@ -7,7 +7,7 @@ import (
 )
 
 func encodeARecord(ip string) ([]byte, error) {
-	data := make([]byte, 4)
+	data := []byte{}
 	parts := strings.Split(ip, ".")
 	if len(parts) != 4 {
 		return []byte{}, fmt.Errorf("invalid A record")
@@ -38,12 +38,25 @@ func encodeDomainName(name string) ([]byte, error) {
 
 func decodeDomainName(buf []byte, offset int) (string, int, error) {
 	labels := []string{}
+	finalOffset := -1
 	for {
 		if offset >= len(buf) {
 			return "", 0, fmt.Errorf("buffer too short for parsing name")
 		}
 
-		length := int(buf[offset])
+		b := buf[offset]
+		if b&0xC0 == 0xC0 {
+			if offset >= len(buf) {
+				return "", 0, fmt.Errorf("buffer too short for compression pointer")
+			}
+			if finalOffset == -1 {
+				finalOffset = offset + 2
+			}
+			offset = int(uint16(b&0x3F)<<8 | uint16(buf[offset+1]))
+			continue
+		}
+
+		length := int(b)
 		offset++
 
 		if length == 0 {
@@ -56,6 +69,10 @@ func decodeDomainName(buf []byte, offset int) (string, int, error) {
 
 		labels = append(labels, string(buf[offset:offset+length]))
 		offset += length
+
+		if finalOffset == -1 {
+			finalOffset = offset
+		}
 	}
-	return strings.Join(labels, "."), offset, nil
+	return strings.Join(labels, "."), finalOffset, nil
 }
