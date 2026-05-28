@@ -58,21 +58,28 @@ func main() {
 
 	buf := make([]byte, 512)
 	resolverBuf := make([]byte, 512)
-	message := NewDNSMessage()
-	resolverMessage := NewDNSMessage()
 
 	for {
 		_, source, err := udpConn.ReadFromUDP(buf)
 		if err != nil {
-			fmt.Println("Error receiving data:", err)
+			fmt.Println("Error reading data:", err)
+			break
+		}
+
+		_, err = resolverUDPConn.Write(buf)
+		if err != nil {
+			fmt.Println("Error writing data to resolver:", err)
 			break
 		}
 
 		_, _, err = resolverUDPConn.ReadFromUDP(resolverBuf)
 		if err != nil {
-			fmt.Println("Error receiving data from resolver:", err)
+			fmt.Println("Error reading data from resolver:", err)
 			break
 		}
+
+		message := NewDNSMessage()
+		resolverMessage := NewDNSMessage()
 
 		err = message.UnmarshalBinary(buf)
 		if err != nil {

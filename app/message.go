@@ -28,24 +28,20 @@ func (m *DNSMessage) MarshalBinary() (data []byte, err error) {
 		fmt.Println("Error marshaling header struct:", err)
 	}
 	responseQuestions := []byte{}
-	responseAnswers := []byte{}
+
 	for _, question := range m.Questions {
 		responseQuestion, err := question.MarshalBinary()
 		if err != nil {
-			return []byte{}, fmt.Errorf("Error marshaling header struct: %w\n", err)
+			return []byte{}, fmt.Errorf("error marshaling question: %w", err)
 		}
 		responseQuestions = append(responseQuestions, responseQuestion...)
-		answer := DNSResourceRecord{
-			Name:     question.Name,
-			Type:     question.Type,
-			Class:    question.Class,
-			TTL:      60,
-			RDLENGTH: 4,
-			RDATA:    "8.8.8.8",
-		}
+	}
+
+	responseAnswers := []byte{}
+	for _, answer := range m.Answers {
 		responseAnswer, err := answer.MarshalBinary()
 		if err != nil {
-			return []byte{}, fmt.Errorf("Error marshaling answer (resource record) struct: %w\n", err)
+			return []byte{}, fmt.Errorf("error marshaling answer: %w", err)
 		}
 		responseAnswers = append(responseAnswers, responseAnswer...)
 	}
@@ -86,7 +82,7 @@ func (m *DNSMessage) UnmarshalBinary(buf []byte) error {
 			fmt.Println("Error unmarshaling questions data:", err)
 			break
 		}
-		answerOffset += dnsAnswer.Offset
+		answerOffset = dnsAnswer.Offset
 		m.Answers = append(m.Answers, dnsAnswer)
 	}
 
